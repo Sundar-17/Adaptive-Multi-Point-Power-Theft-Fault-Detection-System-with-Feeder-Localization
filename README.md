@@ -1,0 +1,2 @@
+# Adaptive-Multi-Point-Power-Theft-Fault-Detection-System-with-Feeder-Localization
+Multi-node ESP32/CT-sensor feeder monitor implementing contamination-gated EMA baseline learning, magnitude-duration-waveform feature extraction for 4-class anomaly classification (theft/fault/sensor-fail/comms-fail), and segment-level fault localization via pairwise adjacent-node current differential analysis. GSM/MQTT alerting.

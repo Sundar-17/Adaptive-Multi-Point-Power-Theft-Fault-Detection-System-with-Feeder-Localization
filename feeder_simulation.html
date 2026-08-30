@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Adaptive Feeder Monitor — Simulation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg-0:#0a0e15;
+    --bg-1:#101724;
+    --bg-2:#161f30;
+    --line:#26314a;
+    --text-hi:#e9edf5;
+    --text-lo:#8b96ad;
+    --amber:#f2a93b;
+    --green:#3ecf8e;
+    --red:#ff5d5d;
+    --blue:#5aa9e6;
+    --purple:#b98af7;
+    --grey:#6b7488;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-hi);
+    font-family:'IBM Plex Sans',sans-serif;}
+  body{
+    background-image:
+      linear-gradient(var(--bg-0),var(--bg-0)),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 28px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 28px);
+  }
+  .app{max-width:1180px;margin:0 auto;padding:28px 20px 60px;}
+
+  header{display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.18em;
+    color:var(--amber);text-transform:uppercase;margin-bottom:6px;}
+  h1{font-size:22px;margin:0;font-weight:600;letter-spacing:-0.01em;}
+  .subtitle{font-size:12.5px;color:var(--text-lo);margin-top:5px;max-width:560px;line-height:1.5;}
+  .clock{font-family:'IBM Plex Mono',monospace;text-align:right;}
+  .clock .t{font-size:20px;color:var(--text-hi);}
+  .clock .s{font-size:11px;color:var(--text-lo);letter-spacing:0.08em;}
+  .sysbadge{display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;
+    font-size:11px;padding:4px 9px;border-radius:3px;margin-top:6px;border:1px solid var(--line);}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
+  .dot.warn{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+
+  /* Feeder diagram */
+  .feeder-panel{background:var(--bg-1);border:1px solid var(--line);border-radius:6px;padding:26px 22px 18px;margin-bottom:18px;}
+  .panel-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.14em;
+    color:var(--text-lo);text-transform:uppercase;margin-bottom:18px;}
+  svg{display:block;width:100%;height:auto;}
+  .node-label{font-family:'IBM Plex Mono',monospace;font-size:11px;fill:var(--text-lo);}
+  .node-val{font-family:'IBM Plex Mono',monospace;font-size:12px;fill:var(--text-hi);font-weight:600;}
+  .seg-label{font-family:'IBM Plex Mono',monospace;font-size:10px;fill:var(--text-lo);}
+  .seg-status{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;}
+
+  /* Controls */
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+  .card{background:var(--bg-1);border:1px solid var(--line);border-radius:6px;padding:18px 20px;}
+  .card h3{margin:0 0 4px;font-size:13px;font-weight:600;}
+  .card p.hint{margin:0 0 14px;font-size:11.5px;color:var(--text-lo);line-height:1.5;}
+
+  .inject-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  select,button{font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:var(--bg-2);
+    color:var(--text-hi);border:1px solid var(--line);border-radius:4px;padding:7px 10px;cursor:pointer;}
+  select:hover,button:hover{border-color:var(--text-lo);}
+  button.act{font-weight:600;letter-spacing:0.02em;}
+  button.theft{color:var(--purple);border-color:#4a3a63;}
+  button.fault{color:var(--red);border-color:#5a2f2f;}
+  button.sensor{color:var(--grey);border-color:#3a4055;}
+  button.comms{color:var(--blue);border-color:#2c4863;}
+  button.reset{color:var(--amber);border-color:#5a4527;margin-top:4px;}
+
+  .stat-row{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;padding:6px 0;border-bottom:1px dashed var(--line);}
+  .stat-row:last-child{border-bottom:none;}
+  .stat-row .v{color:var(--text-hi);font-weight:600;}
+
+  /* Log */
+  .log-panel{background:var(--bg-1);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-top:18px;}
+  .log-list{max-height:230px;overflow-y:auto;display:flex;flex-direction:column-reverse;gap:6px;}
+  .log-entry{display:grid;grid-template-columns:78px 100px 90px 1fr;gap:10px;align-items:center;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px 9px;border-radius:4px;background:var(--bg-2);}
+  .log-entry .tag{font-weight:700;padding:2px 6px;border-radius:3px;text-align:center;font-size:10px;}
+  .tag.theft{color:var(--purple);background:rgba(185,138,247,0.12);}
+  .tag.fault{color:var(--red);background:rgba(255,93,93,0.12);}
+  .tag.sensor_fail{color:var(--grey);background:rgba(107,116,136,0.18);}
+  .tag.comms_fail{color:var(--blue);background:rgba(90,169,230,0.12);}
+  .log-entry .seg{color:var(--text-lo);}
+  .log-entry .conf{color:var(--text-lo);text-align:right;}
+  .empty-log{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-lo);padding:10px 4px;}
+
+  footer{margin-top:26px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-lo);
+    text-align:center;letter-spacing:0.03em;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div>
+      <div class="eyebrow">Feeder Monitoring — Lab Simulation</div>
+      <h1>Adaptive Multi-Point Current Comparison System</h1>
+      <div class="subtitle">Simulated 5-node feeder with contamination-gated baseline learning. Inject an event below and watch the classifier localize and label it in real time.</div>
+    </div>
+    <div class="clock">
+      <div class="t" id="clockT">00:00:00</div>
+      <div class="s">SIM TIME</div>
+      <div class="sysbadge" id="sysBadge"><span class="dot" id="sysDot"></span><span id="sysText">BASELINE LEARNING ACTIVE</span></div>
+    </div>
+  </header>
+
+  <div class="feeder-panel">
+    <div class="panel-label">Feeder Line — Node Currents &amp; Segment Status</div>
+    <svg id="feederSvg" viewBox="0 0 1100 190"></svg>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Inject Event</h3>
+      <p class="hint">Pick a segment and trigger a scenario. The classifier does not see this label — it must derive magnitude, duration and waveform behaviour on its own.</p>
+      <div class="inject-row">
+        <select id="segSelect">
+          <option value="0">Segment S1 (N1–N2)</option>
+          <option value="1">Segment S2 (N2–N3)</option>
+          <option value="2">Segment S3 (N3–N4)</option>
+          <option value="3">Segment S4 (N4–N5)</option>
+        </select>
+      </div>
+      <div class="inject-row">
+        <button class="act theft" onclick="injectEvent('theft')">Inject Theft Tap</button>
+        <button class="act fault" onclick="injectEvent('fault')">Inject Line Fault</button>
+        <button class="act sensor" onclick="injectEvent('sensor_fail')">Inject Sensor Fail</button>
+        <button class="act comms" onclick="injectEvent('comms_fail')">Inject Comms Loss</button>
+      </div>
+      <button class="reset" onclick="resetSim()">↺ Reset Simulation</button>
+    </div>
+
+    <div class="card">
+      <h3>Live Stats</h3>
+      <p class="hint">Detection performance since last reset.</p>
+      <div class="stat-row"><span>Events injected</span><span class="v" id="statInjected">0</span></div>
+      <div class="stat-row"><span>Correctly classified</span><span class="v" id="statCorrect">0</span></div>
+      <div class="stat-row"><span>False alarms (normal load)</span><span class="v" id="statFalse">0</span></div>
+      <div class="stat-row"><span>Avg. detection time</span><span class="v" id="statTime">—</span></div>
+      <div class="stat-row"><span>Segment localization accuracy</span><span class="v" id="statLoc">—</span></div>
+    </div>
+  </div>
+
+  <div class="log-panel">
+    <div class="panel-label">Classification Log</div>
+    <div class="log-list" id="logList">
+      <div class="empty-log">No events yet. Inject one above to see classification appear here.</div>
+    </div>
+  </div>
+
+  <footer>ESP32 + CT-sensor concept simulated in-browser · magnitude / duration / waveform feature classifier · contamination-gated adaptive baseline</footer>
+</div>
+
+<script>
+const N = 5; // nodes
+const SEG = N - 1; // segments
+const COLORS = {normal:'#3ecf8e', theft:'#b98af7', fault:'#ff5d5d', sensor_fail:'#6b7488', comms_fail:'#5aa9e6'};
+const LABELS = {normal:'NORMAL', theft:'THEFT', fault:'LINE FAULT', sensor_fail:'SENSOR FAIL', comms_fail:'COMMS LOSS'};
+
+let tick = 0;
+let nodes, segments, overrides, logEntries;
+let stats = {injected:0, correct:0, falseAlarms:0, detectTimes:[], locCorrect:0, locTotal:0};
+
+function freshState(){
+  nodes = Array.from({length:N}, (_,i)=>({
+    base: 8 + i*0.15,      // nominal current level
+    val: 8 + i*0.15,
+    commsOk: true,
+    sensorOk: true,
+    history: []
+  }));
+  segments = Array.from({length:SEG}, ()=>({
+    baseline: 0.12,        // learned nominal mismatch
+    mismatchHist: [],
+    status: 'normal',
+    eventTicks: 0,
+    reported: false,
+    detectStartTick: null
+  }));
+  overrides = Array.from({length:SEG}, ()=>null); // active injected event per segment
+  logEntries = [];
+  tick = 0;
+  stats = {injected:0, correct:0, falseAlarms:0, detectTimes:[], locCorrect:0, locTotal:0};
+  updateStatsPanel();
+  document.getElementById('logList').innerHTML = '<div class="empty-log">No events yet. Inject one above to see classification appear here.</div>';
+}
+
+function injectEvent(type){
+  const seg = parseInt(document.getElementById('segSelect').value);
+  if(overrides[seg]) return; // one at a time per segment
+  const durationMap = {theft: 40, fault: 10, sensor_fail: 9999, comms_fail: 9999};
+  overrides[seg] = {type, ticksLeft: durationMap[type], groundTruthLogged:false};
+  stats.injected++;
+  updateStatsPanel();
+}
+
+function resetSim(){ freshState(); }
+
+function simTick(){
+  tick++;
+
+  // ---- generate raw node currents ----
+  for(let i=0;i<N;i++){
+    const nd = nodes[i];
+    // check if this node is affected by a comms/sensor override on adjacent segment
+    let sensorFrozen = false, commsDown = false;
+    for(let s=0;s<SEG;s++){
+      const ov = overrides[s];
+      if(!ov) continue;
+      const touchesNode = (s===i) || (s+1===i);
+      if(ov.type==='sensor_fail' && touchesNode && Math.random()<0.5) sensorFrozen = true;
+      if(ov.type==='comms_fail' && touchesNode && Math.random()<0.5) commsDown = true;
+    }
+    nd.commsOk = !commsDown;
+    if(sensorFrozen){
+      // flatlines at whatever the last value was, ignoring real load
+      nd.val = nd.history.length ? nd.history[nd.history.length-1] : nd.base;
+    } else {
+      const diurnal = 0.6*Math.sin(tick/55) + 0.3*Math.sin(tick/13);
+      const noise = (Math.random()-0.5)*0.18;
+      nd.val = nd.base + diurnal + noise;
+    }
+    nd.history.push(nd.val);
+    if(nd.history.length>60) nd.history.shift();
+  }
+
+  // ---- apply theft/fault effects directly to segment mismatch ----
+  let anyActive = false;
+  for(let s=0;s<SEG;s++){
+    const ov = overrides[s];
+    let injectedMismatch = 0;
+    if(ov){
+      anyActive = true;
+      if(ov.type==='theft') injectedMismatch = 1.1 + (Math.random()-0.5)*0.12; // sustained, moderate, low-variance
+      if(ov.type==='fault') injectedMismatch = (ov.ticksLeft>7) ? 3.4 + Math.random()*0.6 : 0; // abrupt, high, short
+    }
+
+    const raw = Math.abs(nodes[s].val - nodes[s+1].val) + injectedMismatch;
+    segments[s].mismatchHist.push(raw);
+    if(segments[s].mismatchHist.length>40) segments[s].mismatchHist.shift();
+
+    // waveform proxy: recent jump vs recent variance
+    const h = segments[s].mismatchHist;
+    const recentJump = h.length>1 ? Math.abs(h[h.length-1]-h[h.length-2]) : 0;
+    const recentVar = variance(h.slice(-8));
+
+    const deviation = raw - segments[s].baseline;
+    const threshold = 0.55 + segments[s].baseline*0.4;
+
+    const commsIssue = !nodes[s].commsOk || !nodes[s+1].commsOk;
+    const sensorFlat = variance(nodes[s].history.slice(-10)) < 0.0009 && ov && ov.type==='sensor_fail';
+
+    let status = 'normal';
+    if(commsIssue){
+      status = 'comms_fail';
+    } else if(sensorFlat){
+      status = 'sensor_fail';
+    } else if(deviation > threshold){
+      segments[s].eventTicks++;
+      if(recentJump > 1.4){
+        status = 'fault';           // abrupt high jump → fault
+      } else if(segments[s].eventTicks > 5 && recentVar < 0.06){
+        status = 'theft';           // sustained, low-variance elevated mismatch → theft
+      } else {
+        status = 'evaluating';
+      }
+    } else {
+      segments[s].eventTicks = 0;
+    }
+
+    if(status !== 'normal' && status !== 'evaluating' && !segments[s].reported){
+      segments[s].reported = true;
+      segments[s].detectStartTick = segments[s].detectStartTick || tick;
+      logEvent(s, status);
+    }
+    if(status==='normal'){
+      segments[s].reported = false;
+      segments[s].detectStartTick = null;
+    }
+
+    segments[s].status = status;
+
+    // ---- contamination-gated baseline learning ----
+    // only adapt when EVERY segment is normal (verified normal condition)
+    segments[s]._candidateNormal = (status==='normal');
+  }
+
+  const systemVerifiedNormal = segments.every(sg=>sg._candidateNormal);
+  if(systemVerifiedNormal){
+    for(let s=0;s<SEG;s++){
+      const raw = segments[s].mismatchHist[segments[s].mismatchHist.length-1];
+      segments[s].baseline = segments[s].baseline*0.985 + raw*0.015;
+    }
+  }
+
+  // countdown overrides
+  for(let s=0;s<SEG;s++){
+    const ov = overrides[s];
+    if(!ov) continue;
+    if(ov.type==='theft' || ov.type==='fault'){
+      ov.ticksLeft--;
+      if(ov.ticksLeft<=0) overrides[s]=null;
+    }
+    // sensor_fail / comms_fail persist until manually cleared via reset (simulating a standing fault)
+  }
+
+  document.getElementById('sysDot').className = 'dot' + (systemVerifiedNormal ? '' : ' warn');
+  document.getElementById('sysText').textContent = systemVerifiedNormal ? 'BASELINE LEARNING ACTIVE' : 'LEARNING PAUSED — ANOMALY PRESENT';
+
+  render();
+}
+
+function variance(arr){
+  if(arr.length<2) return 0;
+  const m = arr.reduce((a,b)=>a+b,0)/arr.length;
+  return arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length;
+}
+
+function logEvent(segIdx, status){
+  const ov = overrides[segIdx];
+  const groundTruth = ov ? ov.type : null;
+  const correct = groundTruth === status;
+  if(groundTruth){
+    stats.locTotal++;
+    if(correct){ stats.correct++; stats.locCorrect++; }
+    const dt = tick - (segments[segIdx].detectStartTick || tick);
+    stats.detectTimes.push(Math.max(dt,1));
+  } else {
+    stats.falseAlarms++;
+  }
+  updateStatsPanel();
+
+  const el = document.getElementById('logList');
+  if(el.querySelector('.empty-log')) el.innerHTML = '';
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `
+    <span>${formatClock(tick)}</span>
+    <span class="tag ${status}">${LABELS[status]}</span>
+    <span class="seg">Segment S${segIdx+1}</span>
+    <span class="conf">${correct? 'match ✓' : (groundTruth? 'mismatch' : 'flagged')}</span>`;
+  el.prepend(entry);
+  while(el.children.length>25) el.removeChild(el.lastChild);
+}
+
+function updateStatsPanel(){
+  document.getElementById('statInjected').textContent = stats.injected;
+  document.getElementById('statCorrect').textContent = stats.correct;
+  document.getElementById('statFalse').textContent = stats.falseAlarms;
+  document.getElementById('statTime').textContent = stats.detectTimes.length
+    ? (stats.detectTimes.reduce((a,b)=>a+b,0)/stats.detectTimes.length).toFixed(1)+' ticks' : '—';
+  document.getElementById('statLoc').textContent = stats.locTotal
+    ? Math.round(100*stats.locCorrect/stats.locTotal)+'%' : '—';
+}
+
+function formatClock(t){
+  const secs = t*1; // 1 tick ~ 1 sim-second
+  const h = String(Math.floor(secs/3600)%24).padStart(2,'0');
+  const m = String(Math.floor(secs/60)%60).padStart(2,'0');
+  const s = String(secs%60).padStart(2,'0');
+  return `${h}:${m}:${s}`;
+}
+
+function render(){
+  document.getElementById('clockT').textContent = formatClock(tick);
+
+  const svg = document.getElementById('feederSvg');
+  const W=1100,H=190, margin=90;
+  const spacing = (W-2*margin)/(N-1);
+  const y = 90;
+  let s = `<line x1="${margin}" y1="${y}" x2="${W-margin}" y2="${y}" stroke="#26314a" stroke-width="2"/>`;
+
+  for(let i=0;i<N;i++){
+    const x = margin + i*spacing;
+    const nd = nodes[i];
+    const nodeColor = nd.commsOk ? '#3ecf8e' : '#5aa9e6';
+    s += `<circle cx="${x}" cy="${y}" r="9" fill="${nodeColor}" fill-opacity="0.18" stroke="${nodeColor}" stroke-width="2"/>`;
+    s += `<circle cx="${x}" cy="${y}" r="3" fill="${nodeColor}"/>`;
+    s += `<text x="${x}" y="${y-22}" text-anchor="middle" class="node-label">N${i+1}</text>`;
+    s += `<text x="${x}" y="${y+34}" text-anchor="middle" class="node-val">${nd.commsOk? nd.val.toFixed(2)+' A' : '— no data —'}</text>`;
+  }
+
+  for(let seg=0;seg<SEG;seg++){
+    const x1 = margin + seg*spacing, x2 = margin + (seg+1)*spacing;
+    const xm = (x1+x2)/2;
+    const st = segments[seg].status;
+    const col = st==='evaluating' ? '#f2a93b' : COLORS[st];
+    s += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-width="${st==='normal'?2:4}"/>`;
+    s += `<text x="${xm}" y="${y-40}" text-anchor="middle" class="seg-label">S${seg+1}</text>`;
+    s += `<text x="${xm}" y="${y+58}" text-anchor="middle" class="seg-status" fill="${col}">${st==='evaluating'?'EVALUATING…':LABELS[st]}</text>`;
+    s += `<text x="${xm}" y="${y+72}" text-anchor="middle" class="seg-label">Δ ${segments[seg].mismatchHist.length? segments[seg].mismatchHist[segments[seg].mismatchHist.length-1].toFixed(2):'0.00'} / base ${segments[seg].baseline.toFixed(2)}</text>`;
+  }
+
+  svg.innerHTML = s;
+}
+
+freshState();
+render();
+setInterval(simTick, 450);
+</script>
+</body>
+</html>

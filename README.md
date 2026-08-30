@@ -1,4 +1,4 @@
-## ⚡ Adaptive Multi-Point Power Theft & Line-Fault Detection System
+## ⚡ Powerloss Sentinel
 
 A low-cost, edge-based system for detecting and classifying power line anomalies using
 ESP32 microcontrollers and CT current sensors distributed along a feeder line.
